@@ -1,32 +1,39 @@
+// Arquivo: processo.c
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
 #include "processo.h"
 #include "gerenciador_memoria.h"
 
-// Definição da variável global declarada em processo.h
-Processo* lista_de_processos;
+// CORREÇÃO: A definição de 'lista_de_processos' estava incorreta.
+// Antes: Processo* lista_de_processos; (um único ponteiro)
+// Agora: Processo* lista_de_processos[MAX_PROCESSOS]; (um vetor de ponteiros para Processo)
+// Isso aloca estaticamente o vetor com MAX_PROCESSOS posições, e como é uma variável global,
+// todos os seus elementos são inicializados com NULL por padrão.
+Processo* lista_de_processos[MAX_PROCESSOS];
+
+// Definição das variáveis globais declaradas em outros módulos
 extern unsigned char* memoria_fisica;
 extern int num_total_quadros;
 
 int criar_processo(int pid, int tamanho_processo) {
     // Validação 1: PID já existe?
     for (int i = 0; i < MAX_PROCESSOS; i++) {
-        if (lista_de_processos[i]!= NULL && lista_de_processos[i]->pid == pid) {
+        if (lista_de_processos[i] != NULL && lista_de_processos[i]->pid == pid) {
             printf("Erro: PID %d já está em uso.\n", pid);
             return -1;
         }
     }
 
     // Validação 2: Tamanho do processo excede o máximo?
-    if (tamanho_processo <= 0 |
-| tamanho_processo > TAMANHO_MAX_PROCESSO) {
+    // CORREÇÃO: Usado o operador lógico '||' em vez do bit-a-bit '|'.
+    if (tamanho_processo <= 0 || tamanho_processo > TAMANHO_MAX_PROCESSO) {
         printf("Erro: Tamanho do processo (%d bytes) é inválido ou excede o máximo permitido (%d bytes).\n", tamanho_processo, TAMANHO_MAX_PROCESSO);
         return -1;
     }
 
     int num_paginas = (tamanho_processo + TAMANHO_PAGINA - 1) / TAMANHO_PAGINA;
-    
+
     // Validação 3: Há quadros livres suficientes?
     int quadros_livres_cont = 0;
     for(int i = 0; i < num_total_quadros; i++) {
@@ -38,7 +45,7 @@ int criar_processo(int pid, int tamanho_processo) {
         printf("Erro: Memória física insuficiente para alocar %d páginas para o processo %d.\n", num_paginas, pid);
         return -1;
     }
-    
+
     // Encontrar um slot livre na lista de processos
     int slot_processo = -1;
     for (int i = 0; i < MAX_PROCESSOS; i++) {
@@ -72,6 +79,17 @@ int criar_processo(int pid, int tamanho_processo) {
     // Alocação de quadros e preenchimento da memória
     for (int i = 0; i < num_paginas; i++) {
         int quadro_livre = encontrar_quadro_livre();
+        // Embora a validação anterior já tenha sido feita, em um sistema real
+        // seria necessária uma trava aqui para garantir atomicidade. Para este simulador, está OK.
+        if (quadro_livre == -1) {
+             // Esta condição não deveria acontecer devido à validação anterior,
+             // mas é uma boa prática de programação defensiva.
+             printf("Erro inesperado: Não foi possível encontrar um quadro livre que deveria existir.\n");
+             free(novo_processo->tabela_paginas);
+             free(novo_processo);
+             // Reverter marcações de quadros já feitas (não implementado)
+             return -1;
+        }
         marcar_quadro_ocupado(quadro_livre);
         novo_processo->tabela_paginas[i] = quadro_livre;
 
@@ -93,7 +111,7 @@ int criar_processo(int pid, int tamanho_processo) {
 void visualizar_tabela_paginas(int pid) {
     Processo* p = NULL;
     for (int i = 0; i < MAX_PROCESSOS; i++) {
-        if (lista_de_processos[i]!= NULL && lista_de_processos[i]->pid == pid) {
+        if (lista_de_processos[i] != NULL && lista_de_processos[i]->pid == pid) {
             p = lista_de_processos[i];
             break;
         }
@@ -110,7 +128,7 @@ void visualizar_tabela_paginas(int pid) {
     printf("| Página Lógica | Quadro Físico |\n");
     printf("+---------------+---------------+\n");
     for (int i = 0; i < p->num_paginas; i++) {
-        printf("| %02d | %02d |\n", i, p->tabela_paginas[i]);
+        printf("| %-13d | %-13d |\n", i, p->tabela_paginas[i]);
     }
     printf("+---------------+---------------+\n");
 }
