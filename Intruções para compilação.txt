@@ -1,0 +1,13 @@
+Para compilar e executar o trabalho utilizamos os seguintes comandos:
+
+(se necessário) Clonar o repositório:
+git clone https://github.com/bernardothives/simulador_memoria.git
+
+1. Acessar o conteúdo:
+cd simulador_memoria
+
+2. Compilar:
+gcc * -o simulador
+
+3. Executar:
+./simulador
